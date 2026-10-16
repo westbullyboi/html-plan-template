@@ -12,7 +12,7 @@ AIエージェント（Claude Code / Antigravity）との開発で、**長文の
 ```
 .
 ├── .antigravity/rules.md          # Antigravity 用ルール
-├── .claude/skills/                # プロジェクトスキル（find-skills, graphify, explain, summarize, quiz）
+├── .claude/skills/                # プロジェクトスキル（外部2件 + 自作53件）
 ├── CLAUDE.md                      # Claude Code 用ルール
 ├── plans/
 │   ├── archive/                   # 完了済み計画（YYYYMMDD-機能名.html）
@@ -146,6 +146,18 @@ npx skills list                 # 入っている外部スキルの一覧
 npx skills update               # 外部スキルを更新（導入元とハッシュは skills-lock.json）
 pip install graphifyy           # graphify の CLI（ローカルで使う場合）
 ```
+
+### 汎用開発スキル（50件・自作）
+
+各スキルは「実行手順」「守るべき制約」「出力フォーマット」を持ちます。コードを書き換えるスキルは、変更理由の明記と差分の前後3行以上のコンテキスト維持を必須にしています。`/<name>` で明示的に呼ぶか、依頼内容に合えば Claude が自動で選びます。
+
+| 分類 | スキル |
+| --- | --- |
+| コード生成・リファクタリング | `clean-code`, `design-pattern`, `error-handler`, `async-optimize`, `type-safety`, `legacy-migration`, `boilerplate-gen`, `sql-optimize`, `api-client-gen`, `config-migrator` |
+| テスト・品質保証 | `unit-test-gen`, `mock-factory`, `e2e-scenario`, `edge-case-hunter`, `coverage-booster`, `mutation-test`, `benchmark-gen`, `security-audit`, `race-condition`, `dependency-check` |
+| ドキュメント・レビュー | `jsdoc-gen`, `readme-updater`, `architecture-decision`, `api-spec-gen`, `pr-description`, `code-reviewer`, `release-notes`, `diagram-mermaid`, `onboarding-guide`, `todo-summarizer` |
+| デバッグ・トラブルシューティング | `log-injector`, `stacktrace-analyzer`, `memory-leak`, `git-bisect-helper`, `regex-wizard`, `network-stubby`, `docker-debugger`, `ci-cd-fixer`, `env-validator`, `cors-solver` |
+| プロジェクト管理・効率化 | `commit-wizard`, `issue-creator`, `db-migration-gen`, `i18n-translator`, `feature-flag`, `css-tailwind`, `sh-automation`, `package-trimmer`, `license-header`, `cursor-rules-sync` |
 
 外部スキルの導入ルール（SKILL.md を読んでから入れる、グローバル導入しない等）は `CLAUDE.md` の「7. プロジェクトスキル」を参照してください。
 出典: [Claude Codeを最強にする『神Skill』厳選5選（tatsuki）](https://note.com/nobel/n/ndeb8327f909a)

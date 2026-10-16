@@ -35,7 +35,7 @@
 
 ## プロジェクトスキル
 
-`.claude/skills/` に find-skills / graphify / explain / summarize / quiz を置いている。用途と導入ルールは `CLAUDE.md` の「7. プロジェクトスキル」を参照（同じルールに従う）。
+`.claude/skills/` に find-skills / graphify / explain / summarize / quiz と、汎用開発スキル50件（一覧は README）を置いている。コードを書き換えるスキルは変更理由と前後3行以上のコンテキストを示す。用途と導入ルールは `CLAUDE.md` の「7. プロジェクトスキル」を参照（同じルールに従う）。
 
 - 外部スキルは導入前に SKILL.md を全文読む。導入はプロジェクト単位・コピー方式（`npx skills add ... --copy`）に限り、グローバル導入はしない。
 - graphify は `graphify install --platform antigravity` で Antigravity にも登録できる（未導入。必要になったら実施）。
