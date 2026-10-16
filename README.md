@@ -12,6 +12,7 @@ AIエージェント（Claude Code / Antigravity）との開発で、**長文の
 ```
 .
 ├── .antigravity/rules.md          # Antigravity 用ルール
+├── .claude/skills/                # プロジェクトスキル（find-skills, graphify, explain, summarize, quiz）
 ├── CLAUDE.md                      # Claude Code 用ルール
 ├── plans/
 │   ├── archive/                   # 完了済み計画（YYYYMMDD-機能名.html）
@@ -20,6 +21,7 @@ AIエージェント（Claude Code / Antigravity）との開発で、**長文の
 │   └── current-plan.html          # 進行中の計画（作業中のみ存在。完了後は archive/ へ移動）
 ├── src/                           # ソースコード（サンプル: Hello World 挨拶ページ）
 ├── .gitignore
+├── skills-lock.json               # npx skills の導入元・ハッシュ
 └── README.md
 ```
 
@@ -126,6 +128,27 @@ start src/index.html
 - 1つの実装コミットに計画変更を混ぜない。実装中に仕様変更が必要になったら、計画を更新して再合意（新たな仕様合意コミット）してから続ける。
 - 実装コミットの本文に根拠となる計画ファイルのパスを書く（例: `Plan: plans/archive/20261016-hello-world.html`）。
 - `plans/` 配下のHTMLは合意の記録なので Git 管理します（`.gitignore` 対象外）。
+
+## プロジェクトスキル
+
+`.claude/skills/` に置いたスキルは、リポジトリを開いた Claude Code（クラウドセッションを含む）で自動的に使えます。
+
+| スキル | 呼び方の例 | 内容 |
+| --- | --- | --- |
+| find-skills | 「〇〇用のスキルはある？」 | [skills.sh](https://skills.sh/) と `npx skills find` で公開スキルを探して提案 |
+| graphify | `/graphify .` → `graphify query "認証はどこ？"` | コードをナレッジグラフにして構造を問い合わせる（初回に Python 3.10+ と `graphifyy` が必要） |
+| explain | `/explain` + コード | ビジネスロジック / エラーハンドリング / 性能懸念の3層で解説 |
+| summarize | `/summarize` + 文書 | 重要ポイント3つ / 最短セットアップ / 制約 で要約 |
+| quiz | `/quiz` | 直前の会話から理解度確認の質問を5つ作成 |
+
+```bash
+npx skills list                 # 入っている外部スキルの一覧
+npx skills update               # 外部スキルを更新（導入元とハッシュは skills-lock.json）
+pip install graphifyy           # graphify の CLI（ローカルで使う場合）
+```
+
+外部スキルの導入ルール（SKILL.md を読んでから入れる、グローバル導入しない等）は `CLAUDE.md` の「7. プロジェクトスキル」を参照してください。
+出典: [Claude Codeを最強にする『神Skill』厳選5選（tatsuki）](https://note.com/nobel/n/ndeb8327f909a)
 
 ## 計画テンプレートの記法（作成者向け）
 

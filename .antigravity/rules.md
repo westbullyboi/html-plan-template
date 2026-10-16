@@ -32,3 +32,10 @@
 - **仕様合意コミット**（`plans/current-plan.html` のみ）と **実装コミット**（`src/` + アーカイブ移動）を分ける。
   - 例: `plan(hello-world): 仕様合意 rev2 (A1=日英切替)` → `feat(hello-world): 挨拶ページを実装`
 - `plans/` 配下のHTMLは Git 管理対象（無視しない）。
+
+## プロジェクトスキル
+
+`.claude/skills/` に find-skills / graphify / explain / summarize / quiz を置いている。用途と導入ルールは `CLAUDE.md` の「7. プロジェクトスキル」を参照（同じルールに従う）。
+
+- 外部スキルは導入前に SKILL.md を全文読む。導入はプロジェクト単位・コピー方式（`npx skills add ... --copy`）に限り、グローバル導入はしない。
+- graphify は `graphify install --platform antigravity` で Antigravity にも登録できる（未導入。必要になったら実施）。
