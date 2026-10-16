@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hello World 挨拶ページ 実装計画</title>
+<!--
+  html-plan テンプレート
+  - 外部依存なし。ダブルクリックでブラウザ表示できる単一ファイル。
+  - 書き換えるのは (1) <title> (2) #plan-meta (3) PLAN:CONTENT マーカー間 のみ。
+  - <style> と末尾の <script> はテンプレート共通部品なので原則編集しない。
+
+  記法:
+  - Claim:   <details class="claim l1|l2|l3">（最大3階層。L1=UIモック/状態図, L2=スキーマ/フロー, L3=実ファイル/コード断片）
+  - doc-ask: <fieldset class="doc-ask" data-ask="A1" data-question="問い">
+               <label class="opt"><input type="radio" name="A1" value="x" data-label="表示名" checked> ...</label>
+             </fieldset>
+             * 推奨デフォルトには checked を付ける（JSが自動で「推奨」バッジを付与）
+             * 複数選択は type="checkbox"
+  - 連動表示: data-when="A1=x|y;A2=z"  … 条件（; は AND、| は OR）を満たすときだけ表示
+             data-bind="A1"           … A1 で選択中の data-label を差し込む
+-->
+<script type="application/json" id="plan-meta">
+{
+  "id": "20261016-hello-world",
+  "title": "Hello World 挨拶ページ 実装計画",
+  "revision": 2,
+  "file": "plans/current-plan.html"
+}
+</script>
+<style>
+:root {
+  --bg: #f8fafc; --surface: #ffffff; --surface-2: #f1f5f9; --border: #e2e8f0;
+  --text: #0f172a; --muted: #64748b; --accent: #4f46e5; --accent-soft: #eef2ff;
+  --ok: #059669; --ok-soft: #ecfdf5; --warn: #d97706; --warn-soft: #fffbeb;
+  --l1: #4f46e5; --l2: #0891b2; --l3: #64748b;
+  --code-bg: #0f172a; --code-text: #e2e8f0;
+  --radius: 10px; --shadow: 0 1px 2px rgba(15,23,42,.06), 0 1px 3px rgba(15,23,42,.08);
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b1120; --surface: #111827; --surface-2: #1f2937; --border: #334155;
+    --text: #e5e7eb; --muted: #94a3b8; --accent: #818cf8; --accent-soft: #1e1b4b;
+    --ok: #34d399; --ok-soft: #052e2b; --warn: #fbbf24; --warn-soft: #3a2a06;
+    --l1: #818cf8; --l2: #22d3ee; --l3: #94a3b8; --code-bg: #020617;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.7 system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif; }
+[hidden] { display: none !important; }
+a { color: var(--accent); }
+code { font-family: var(--mono); font-size: .9em; background: var(--surface-2); padding: .1em .35em; border-radius: 4px; }
+pre { margin: .5rem 0; padding: 1rem; overflow-x: auto; background: var(--code-bg); color: var(--code-text);
+  border-radius: 8px; font: 13px/1.6 var(--mono); }
+pre code { background: none; padding: 0; color: inherit; }
+h1, h2, h3 { line-height: 1.3; margin: 0 0 .5rem; }
+h1 { font-size: 1.6rem; } h2 { font-size: 1.15rem; margin-top: 2rem; } h3 { font-size: 1rem; }
+p { margin: .4rem 0; }
+ul { margin: .4rem 0; padding-left: 1.3rem; }
+textarea, input[type=text] { width: 100%; font: inherit; color: var(--text); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 8px; padding: .5rem .7rem; }
+textarea:focus, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* layout */
+.container { max-width: 960px; margin: 0 auto; padding: 0 16px; }
+.header { padding: 2rem 0 1rem; }
+.eyebrow { font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.meta { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .6rem; }
+.chip { display: inline-flex; align-items: center; gap: .3rem; font-size: .75rem; font-weight: 600;
+  padding: .15rem .55rem; border-radius: 999px; background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); }
+.chip.accent { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+.chip.ok { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
+.chip.warn { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1rem 1.2rem; }
+.grid-2 { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.muted { color: var(--muted); }
+.small { font-size: .85rem; }
+
+/* sticky decision bar */
+.bar { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); }
+.bar-inner { display: flex; align-items: center; gap: .8rem; padding: .55rem 16px; max-width: 960px; margin: 0 auto; flex-wrap: wrap; }
+.progress { flex: 1 1 160px; height: 6px; background: var(--surface-2); border-radius: 999px; overflow: hidden; min-width: 120px; }
+.progress > span { display: block; height: 100%; width: 0; background: var(--ok); transition: width .25s; }
+.btn { appearance: none; border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  font: inherit; font-size: .85rem; font-weight: 600; padding: .4rem .9rem; border-radius: 8px; cursor: pointer; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { filter: brightness(1.08); }
+
+/* claim tree */
+.claim { border: 1px solid var(--border); border-left: 4px solid var(--l1); border-radius: var(--radius);
+  background: var(--surface); margin: .8rem 0; box-shadow: var(--shadow); }
+.claim.l2 { border-left-color: var(--l2); box-shadow: none; background: var(--surface); }
+.claim.l3 { border-left-color: var(--l3); box-shadow: none; background: var(--surface-2); }
+.claim > summary { cursor: pointer; list-style: none; padding: .75rem 1rem; display: flex; gap: .6rem; align-items: baseline; font-weight: 600; }
+.claim > summary::-webkit-details-marker { display: none; }
+.claim > summary::before { content: "▸"; color: var(--muted); transition: transform .15s; display: inline-block; }
+.claim[open] > summary::before { transform: rotate(90deg); }
+.claim > .body { padding: 0 1rem 1rem 1.9rem; }
+.lv { font: 700 .68rem/1 var(--mono); padding: .25rem .4rem; border-radius: 4px; color: #fff; background: var(--l1); flex: none; }
+.l2 > summary .lv { background: var(--l2); }
+.l3 > summary .lv { background: var(--l3); }
+.kind { font-weight: 500; font-size: .8rem; color: var(--muted); margin-left: auto; white-space: nowrap; }
+
+/* doc-ask */
+.doc-ask { border: 1.5px dashed var(--accent); border-radius: var(--radius); background: var(--accent-soft);
+  padding: .8rem 1rem 1rem; margin: 1rem 0; min-width: 0; }
+.doc-ask.is-held { border-color: var(--warn); background: var(--warn-soft); }
+.doc-ask > legend { font-weight: 700; padding: 0 .4rem; }
+.doc-ask > legend .id { font: 700 .75rem var(--mono); color: var(--accent); margin-right: .4rem; }
+.ask-status { font-size: .75rem; margin-left: .4rem; }
+.opt { display: flex; gap: .6rem; align-items: flex-start; padding: .55rem .7rem; margin: .4rem 0; border-radius: 8px;
+  background: var(--surface); border: 1px solid var(--border); cursor: pointer; }
+.opt:hover { border-color: var(--accent); }
+.opt:has(input:checked) { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.opt input { margin-top: .35rem; accent-color: var(--accent); }
+.opt .t { font-weight: 600; }
+.opt .d { display: block; font-size: .83rem; color: var(--muted); }
+.rec { font-size: .7rem; font-weight: 700; color: var(--ok); background: var(--ok-soft); padding: .05rem .4rem; border-radius: 4px; margin-left: .35rem; }
+.ask-foot { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin-top: .5rem; }
+.ask-foot .hold { font-size: .83rem; color: var(--muted); display: inline-flex; gap: .3rem; align-items: center; cursor: pointer; }
+.ask-foot input[type=text] { flex: 1 1 220px; font-size: .85rem; padding: .35rem .6rem; }
+
+/* mocks & diagrams */
+.mock { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--surface); }
+.mock-bar { display: flex; gap: 6px; align-items: center; padding: .45rem .7rem; background: var(--surface-2); border-bottom: 1px solid var(--border); font: .75rem var(--mono); color: var(--muted); }
+.mock-bar i { width: 10px; height: 10px; border-radius: 50%; background: var(--border); display: inline-block; }
+.mock-body { padding: 1.4rem; }
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.node { padding: .45rem .8rem; border-radius: 8px; border: 1.5px solid var(--l2); background: var(--surface); font-weight: 600; font-size: .85rem; }
+.node.start { border-style: dashed; }
+.node.end { background: var(--ok-soft); border-color: var(--ok); }
+.arrow { color: var(--muted); font-size: .8rem; }
+table { border-collapse: collapse; width: 100%; font-size: .87rem; }
+th, td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: .78rem; }
+
+/* respond */
+.respond { margin: 2.5rem 0 4rem; }
+.respond textarea#response-md { font: 13px/1.6 var(--mono); min-height: 260px; background: var(--surface-2); }
+.actions { display: flex; flex-wrap: wrap; gap: .6rem; margin: .8rem 0; }
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--text); color: var(--bg);
+  padding: .5rem 1rem; border-radius: 8px; font-size: .85rem; opacity: 0; transition: opacity .2s; pointer-events: none; }
+.toast.show { opacity: 1; }
+@media print { .bar, .respond .actions { display: none; } .claim { break-inside: avoid; } }
+</style>
+</head>
+<body>
+
+<div class="bar" role="region" aria-label="決定状況">
+  <div class="bar-inner">
+    <strong class="small">決定 <span id="count-decided">0</span>/<span id="count-total">0</span></strong>
+    <span class="chip warn" id="count-held-chip">保留 <span id="count-held">0</span></span>
+    <span class="chip accent" id="count-changed-chip">推奨から変更 <span id="count-changed">0</span></span>
+    <div class="progress" aria-hidden="true"><span id="progress-fill"></span></div>
+    <button class="btn" type="button" id="btn-reset">推奨に戻す</button>
+    <a class="btn primary" href="#respond" style="text-decoration:none">Respond へ</a>
+  </div>
+</div>
+
+<main class="container">
+<!-- PLAN:CONTENT:START -->
+<header class="header">
+  <div class="eyebrow">html-plan · Implementation Plan（サンプル）</div>
+  <h1>Hello World 挨拶ページ 実装計画</h1>
+  <p class="muted">html-plan ワークフローの動作確認用サンプル。<code>src/</code> にブラウザで開ける最小の挨拶ページを作り、「計画 → 回答 → 実装 → アーカイブ」の1サイクルを体験する。</p>
+  <div class="meta">
+    <span class="chip accent">rev 2</span>
+    <span class="chip">2026-10-16</span>
+    <span class="chip ok">status: 合意済み（A1=日本語のみ, A2=名前入力, A3=Vanilla JS, A4=手動確認）</span>
+  </div>
+</header>
+
+<section class="grid-2">
+  <div class="card">
+    <h3>やること（Scope）</h3>
+    <ul>
+      <li><code>src/</code> 配下に挨拶ページを実装</li>
+      <li>名前入力による挨拶の動的更新（A2 次第）</li>
+      <li>決定した方法での動作確認</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>やらないこと（Non-goals）</h3>
+    <ul>
+      <li>デプロイ・ホスティング設定</li>
+      <li>多言語リソース管理の仕組み化（i18nライブラリ導入）</li>
+      <li>デザインシステム整備</li>
+    </ul>
+  </div>
+</section>
+
+<h2>Claim ツリー</h2>
+<p class="muted small">L1 = UIモック / 状態図、L2 = スキーマ / フロー、L3 = 実ファイル / コード断片。見出しをクリックで開閉。選択を変えるとモックとコード断片が切り替わります。</p>
+
+<!-- ===== Claim 1: UI ===== -->
+<details class="claim l1" open>
+  <summary><span class="lv">L1</span>ページを開くと挨拶が表示され、ユーザーは迷わず操作できる<span class="kind">UIモック</span></summary>
+  <div class="body">
+    <div class="mock">
+      <div class="mock-bar"><i></i><i></i><i></i>&nbsp;src/index.html</div>
+      <div class="mock-body">
+        <div data-when="A1=ja-en" style="text-align:right;margin-bottom:.6rem">
+          <span class="chip accent">日本語</span> <span class="chip">English</span>
+        </div>
+        <div data-when="A1=auto" style="text-align:right;margin-bottom:.6rem">
+          <span class="chip">navigator.language で自動判定</span>
+        </div>
+        <h2 style="margin:0 0 .8rem" data-when="A2=static">こんにちは、世界！</h2>
+        <h2 style="margin:0 0 .8rem" data-when="A2=input">こんにちは、<span style="color:var(--accent)">ゲスト</span>さん！</h2>
+        <div data-when="A2=input" style="max-width:320px">
+          <input type="text" placeholder="名前を入力" aria-label="名前（モック）" disabled>
+          <p class="muted small">入力のたびに見出しが更新される</p>
+        </div>
+        <p class="muted small" style="margin-top:1rem">言語: <b data-bind="A1"></b> ／ 操作: <b data-bind="A2"></b></p>
+      </div>
+    </div>
+
+    <fieldset class="doc-ask" data-ask="A1" data-question="表示言語をどうするか">
+      <legend><span class="id">A1</span>表示言語をどうするか</legend>
+      <label class="opt"><input type="radio" name="A1" value="ja" data-label="日本語のみ" checked>
+        <span><span class="t">日本語のみ</span><span class="d">最小実装でサンプルの目的に十分。英語対応は後から追加可能。</span></span></label>
+      <label class="opt"><input type="radio" name="A1" value="ja-en" data-label="日英切替ボタン">
+        <span><span class="t">日英切替ボタン</span><span class="d">状態管理の例として有用。文言辞書とボタン処理が増える。</span></span></label>
+      <label class="opt"><input type="radio" name="A1" value="auto" data-label="ブラウザ言語で自動判定">
+        <span><span class="t">ブラウザ言語で自動判定</span><span class="d">操作不要。ただし動作確認に言語設定の切り替えが必要。</span></span></label>
+    </fieldset>
+
+    <fieldset class="doc-ask" data-ask="A2" data-question="ユーザー操作をどこまで入れるか">
+      <legend><span class="id">A2</span>ユーザー操作をどこまで入れるか</legend>
+      <label class="opt"><input type="radio" name="A2" value="input" data-label="名前入力で挨拶を更新" checked>
+        <span><span class="t">名前入力で挨拶を更新</span><span class="d">入力→表示の状態遷移を1つ持つ最小のインタラクション例になる。</span></span></label>
+      <label class="opt"><input type="radio" name="A2" value="static" data-label="静的表示のみ">
+        <span><span class="t">静的表示のみ</span><span class="d">最速。ただしJSの検証対象がほぼ無くなる。</span></span></label>
+    </fieldset>
+
+    <details class="claim l2" open>
+      <summary><span class="lv">L2</span>画面の状態は「初期 → 入力中 → 挨拶済み」の3つで足りる<span class="kind">状態フロー</span></summary>
+      <div class="body">
+        <div class="flow" data-when="A2=input">
+          <span class="node start">初期<br><small class="muted">name = ""</small></span><span class="arrow">input →</span>
+          <span class="node">入力中<br><small class="muted">name 更新</small></span><span class="arrow">render →</span>
+          <span class="node end">挨拶済み<br><small class="muted">「こんにちは、{name}さん」</small></span>
+        </div>
+        <div class="flow" data-when="A2=static">
+          <span class="node start">読み込み</span><span class="arrow">→</span><span class="node end">固定文言を表示</span>
+        </div>
+        <table style="margin-top:1rem" data-when="A2=input">
+          <thead><tr><th>状態キー</th><th>型</th><th>初期値</th><th>備考</th></tr></thead>
+          <tbody>
+            <tr><td><code>name</code></td><td>string</td><td><code>""</code></td><td>空なら「ゲスト」を表示</td></tr>
+            <tr data-when="A1=ja-en"><td><code>lang</code></td><td>"ja" | "en"</td><td><code>"ja"</code></td><td>切替ボタンで変更</td></tr>
+            <tr data-when="A1=auto"><td><code>lang</code></td><td>"ja" | "en"</td><td>navigator.language</td><td>読み込み時に1回決定</td></tr>
+          </tbody>
+        </table>
+
+        <details class="claim l3">
+          <summary><span class="lv">L3</span><code>src/app.js</code><span class="kind">コード断片</span></summary>
+          <div class="body">
+<pre data-when="A2=input;A1=ja"><code>const input = document.querySelector("#name");
+const title = document.querySelector("#greeting");
+const render = (name) =&gt; {
+  title.textContent = `こんにちは、${name || "ゲスト"}さん！`;
+};
+input.addEventListener("input", (e) =&gt; render(e.target.value.trim()));
+render("");</code></pre>
+<pre data-when="A2=input;A1=ja-en|auto"><code>const messages = {
+  ja: (n) =&gt; `こんにちは、${n || "ゲスト"}さん！`,
+  en: (n) =&gt; `Hello, ${n || "guest"}!`,
+};
+const state = { name: "", lang: /* A1 に応じて "ja" or 判定値 */ "ja" };
+const render = () =&gt; {
+  document.querySelector("#greeting").textContent = messages[state.lang](state.name);
+};</code></pre>
+<pre data-when="A2=static"><code>// 静的表示のみのため app.js は作成しない（index.html に文言を直書き）</code></pre>
+          </div>
+        </details>
+      </div>
+    </details>
+  </div>
+</details>
+
+<!-- ===== Claim 2: 構成 ===== -->
+<details class="claim l1" open>
+  <summary><span class="lv">L1</span>実装は最小構成で、セットアップなしに動く<span class="kind">構成図</span></summary>
+  <div class="body">
+    <div class="flow">
+      <span class="node start">ブラウザ</span><span class="arrow">開く →</span>
+      <span class="node">src/index.html</span>
+      <span class="arrow" data-when="A3=vanilla|vite">読込 →</span>
+      <span class="node" data-when="A3=vanilla">src/app.js</span>
+      <span class="node" data-when="A3=vite">src/main.ts（Vite でビルド）</span>
+    </div>
+
+    <fieldset class="doc-ask" data-ask="A3" data-question="実装方式（技術スタック）">
+      <legend><span class="id">A3</span>実装方式（技術スタック）</legend>
+      <label class="opt"><input type="radio" name="A3" value="vanilla" data-label="静的HTML + Vanilla JS" checked>
+        <span><span class="t">静的HTML + Vanilla JS</span><span class="d">依存ゼロ・ダブルクリックで動く。規模が大きくなると構造化が必要。</span></span></label>
+      <label class="opt"><input type="radio" name="A3" value="vite" data-label="Vite + TypeScript">
+        <span><span class="t">Vite + TypeScript</span><span class="d">型安全で拡張しやすい。Node.js と npm install が必要。</span></span></label>
+    </fieldset>
+
+    <details class="claim l2">
+      <summary><span class="lv">L2</span>作成・変更するファイル<span class="kind">スキーマ</span></summary>
+      <div class="body">
+        <details class="claim l3" open>
+          <summary><span class="lv">L3</span>ファイルツリー<span class="kind">実ファイル</span></summary>
+          <div class="body">
+<pre data-when="A3=vanilla"><code>src/
+├── index.html   # 新規: 見出し #greeting と入力 #name
+├── app.js       # 新規: 状態と render（A2=静的なら作成しない）
+└── style.css    # 新規: 最小スタイル</code></pre>
+<pre data-when="A3=vite"><code>package.json     # 新規: vite, typescript
+tsconfig.json    # 新規
+src/
+├── index.html   # 新規
+├── main.ts      # 新規: 状態と render
+└── style.css    # 新規</code></pre>
+          </div>
+        </details>
+      </div>
+    </details>
+  </div>
+</details>
+
+<!-- ===== Claim 3: 品質 ===== -->
+<details class="claim l1" open>
+  <summary><span class="lv">L1</span>完了は「受け入れ基準を満たしたこと」で判定する<span class="kind">状態図</span></summary>
+  <div class="body">
+    <div class="flow">
+      <span class="node start">実装</span><span class="arrow">→</span><span class="node">検証（A4）</span><span class="arrow">→</span>
+      <span class="node">計画HTMLを archive へ退避</span><span class="arrow">→</span><span class="node end">完了</span>
+    </div>
+
+    <fieldset class="doc-ask" data-ask="A4" data-question="検証方法（複数選択可）">
+      <legend><span class="id">A4</span>検証方法（複数選択可）</legend>
+      <label class="opt"><input type="checkbox" name="A4" value="manual" data-label="手動確認チェックリスト" checked>
+        <span><span class="t">手動確認チェックリスト</span><span class="d">追加依存なし。再現性は人に依存。</span></span></label>
+      <label class="opt"><input type="checkbox" name="A4" value="unit" data-label="ユニットテスト（node:test）">
+        <span><span class="t">ユニットテスト（node:test）</span><span class="d">Node.js 標準のみで自動化。render をDOM非依存に切り出す必要あり。</span></span></label>
+      <label class="opt"><input type="checkbox" name="A4" value="e2e" data-label="E2Eテスト（Playwright）">
+        <span><span class="t">E2Eテスト（Playwright）</span><span class="d">実ブラウザで確認できる。サンプルには過剰で依存も増える。</span></span></label>
+    </fieldset>
+
+    <details class="claim l2">
+      <summary><span class="lv">L2</span>受け入れ基準<span class="kind">フロー</span></summary>
+      <div class="body">
+        <ul>
+          <li>ページを開くと挨拶が表示される</li>
+          <li data-when="A2=input">名前を入力すると即座に挨拶が更新され、空欄では「ゲスト」に戻る</li>
+          <li data-when="A1=ja-en">切替ボタンで日本語 / 英語が切り替わる</li>
+          <li data-when="A1=auto">ブラウザ言語が英語のとき英語で表示される</li>
+          <li>コンソールにエラーが出ない</li>
+        </ul>
+        <details class="claim l3" data-when="A4=unit">
+          <summary><span class="lv">L3</span><code>src/greeting.test.js</code><span class="kind">コード断片</span></summary>
+          <div class="body">
+            <p class="muted small">※ ユニットテストを選んだ場合、挨拶文の生成を純粋関数 <code>greet()</code> として <code>src/greeting.js</code> に切り出す（ファイル追加）。</p>
+<pre><code>import { test } from "node:test";
+import assert from "node:assert/strict";
+import { greet } from "./greeting.js";
+
+test("空の名前はゲスト", () =&gt; assert.equal(greet(""), "こんにちは、ゲストさん！"));</code></pre>
+          </div>
+        </details>
+      </div>
+    </details>
+  </div>
+</details>
+
+<!-- PLAN:CONTENT:END -->
+
+<section class="respond card" id="respond">
+  <h2 style="margin-top:0">Respond</h2>
+  <p class="muted small">全体へのコメントを書き、<b>Respond</b> で回答Markdownを生成 → <b>Copy response</b> でコピーし、エージェント（CLI）に貼り付けてください。</p>
+  <label for="general-comment" class="small"><b>全体コメント</b>（任意）</label>
+  <textarea id="general-comment" rows="4" placeholder="懸念点・追加要望・質問など"></textarea>
+  <div class="actions">
+    <button class="btn primary" type="button" id="btn-respond">Respond</button>
+    <button class="btn" type="button" id="btn-copy">Copy response</button>
+  </div>
+  <textarea id="response-md" rows="14" readonly placeholder="Respond を押すとここに回答Markdownが生成されます" hidden></textarea>
+</section>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* html-plan runtime (template common) — 依存なし */
+(function () {
+  "use strict";
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+  var asks = $$(".doc-ask");
+
+  function meta() {
+    try { return JSON.parse($("#plan-meta").textContent); } catch (e) { return { id: "unknown", title: document.title }; }
+  }
+  function options(ask) { return $$(".opt input", ask); }
+  function labelOf(input) { return input.getAttribute("data-label") || input.value; }
+  function selected(ask) { return options(ask).filter(function (i) { return i.checked; }); }
+  function defaults(ask) { return options(ask).filter(function (i) { return i.defaultChecked; }); }
+  function holdBox(ask) { return $(".hold-toggle", ask); }
+  function noteBox(ask) { return $(".ask-note", ask); }
+  function sameSet(a, b) {
+    if (a.length !== b.length) return false;
+    return a.every(function (x) { return b.indexOf(x) !== -1; });
+  }
+  function status(ask) {
+    var sel = selected(ask);
+    var held = holdBox(ask).checked || sel.length === 0;
+    var changed = !held && !sameSet(sel, defaults(ask));
+    return { sel: sel, held: held, changed: changed };
+  }
+  function state() {
+    var s = {};
+    asks.forEach(function (a) {
+      var st = status(a);
+      s[a.getAttribute("data-ask")] = st.held ? [] : st.sel.map(function (i) { return i.value; });
+    });
+    return s;
+  }
+  // "A1=x|y;A2=z" → すべての条件を満たすとき true
+  function matches(expr, s) {
+    return expr.split(";").every(function (cond) {
+      var kv = cond.split("=");
+      var key = kv[0].trim(), vals = (kv[1] || "").split("|").map(function (v) { return v.trim(); });
+      return (s[key] || []).some(function (v) { return vals.indexOf(v) !== -1; });
+    });
+  }
+
+  // 初期化: 推奨バッジ・保留トグル・メモ欄を各 doc-ask に付与
+  asks.forEach(function (ask) {
+    var id = ask.getAttribute("data-ask");
+    defaults(ask).forEach(function (i) {
+      var t = $(".t", i.closest(".opt"));
+      if (t && !$(".rec", t)) { var b = document.createElement("span"); b.className = "rec"; b.textContent = "推奨"; t.appendChild(b); }
+    });
+    var legend = $("legend", ask);
+    var st = document.createElement("span"); st.className = "ask-status chip"; legend.appendChild(st);
+    var foot = document.createElement("div"); foot.className = "ask-foot";
+    foot.innerHTML = '<label class="hold"><input type="checkbox" class="hold-toggle"> 保留（後で決める）</label>' +
+      '<input type="text" class="ask-note" placeholder="' + id + ' へのメモ（任意）">';
+    ask.appendChild(foot);
+  });
+
+  function render() {
+    var s = state();
+    $$("[data-when]").forEach(function (el) { el.hidden = !matches(el.getAttribute("data-when"), s); });
+    $$("[data-bind]").forEach(function (el) {
+      var ask = $('.doc-ask[data-ask="' + el.getAttribute("data-bind") + '"]');
+      if (!ask) return;
+      var st = status(ask);
+      el.textContent = st.held ? "（未決定）" : st.sel.map(labelOf).join(" + ");
+    });
+    var decided = 0, held = 0, changed = 0;
+    asks.forEach(function (ask) {
+      var st = status(ask), chip = $(".ask-status", ask);
+      ask.classList.toggle("is-held", st.held);
+      options(ask).forEach(function (i) { i.disabled = holdBox(ask).checked; });
+      if (st.held) { held++; chip.className = "ask-status chip warn"; chip.textContent = "未決定"; }
+      else if (st.changed) { decided++; changed++; chip.className = "ask-status chip accent"; chip.textContent = "推奨から変更"; }
+      else { decided++; chip.className = "ask-status chip ok"; chip.textContent = "推奨どおり"; }
+    });
+    $("#count-decided").textContent = decided;
+    $("#count-total").textContent = asks.length;
+    $("#count-held").textContent = held;
+    $("#count-changed").textContent = changed;
+    $("#count-held-chip").hidden = held === 0;
+    $("#count-changed-chip").hidden = changed === 0;
+    $("#progress-fill").style.width = (asks.length ? (decided / asks.length) * 100 : 0) + "%";
+  }
+
+  function indent(text) { return text.split(/\r?\n/).join("\n    "); }
+
+  function buildMarkdown() {
+    var m = meta(), decided = [], undecided = [];
+    asks.forEach(function (ask) {
+      var id = ask.getAttribute("data-ask"), q = ask.getAttribute("data-question") || id;
+      var st = status(ask), note = noteBox(ask).value.trim();
+      var rec = defaults(ask).map(labelOf).join(" + ") || "なし";
+      var line;
+      if (st.held) {
+        line = "- [" + id + "] " + q + " — 推奨: " + rec;
+        undecided.push(line + (note ? "\n  - メモ: " + indent(note) : ""));
+      } else {
+        line = "- [" + id + "] " + q + " → **" + st.sel.map(labelOf).join(" + ") + "**" +
+          (st.changed ? "（推奨から変更 / 推奨: " + rec + "）" : "（推奨どおり）");
+        decided.push(line + (note ? "\n  - メモ: " + indent(note) : ""));
+      }
+    });
+    var comment = $("#general-comment").value.trim();
+    var out = [
+      "# Plan Response: " + (m.title || document.title), "",
+      "- plan-id: `" + (m.id || "") + "`",
+      "- revision: " + (m.revision != null ? m.revision : "-"),
+      "- source: `" + (m.file || "plans/current-plan.html") + "`",
+      "- responded-at: " + new Date().toISOString(), "",
+      "## 決定事項", decided.length ? decided.join("\n") : "- なし", "",
+      "## 未決定事項", undecided.length ? undecided.join("\n") : "- なし", "",
+      "## コメント", comment || "- なし", "",
+      "## 指示",
+      undecided.length
+        ? "未決定事項があります。実装は開始せず、上記の決定とコメントを反映して計画HTMLを更新（revision を上げる）し、再提示してください。"
+        : "上記の決定に従って実装を開始してください。仕様合意コミット → 実装コミットの順で分けること。"
+    ];
+    return out.join("\n");
+  }
+
+  function toast(msg) {
+    var t = $("#toast"); t.textContent = msg; t.classList.add("show");
+    clearTimeout(toast._t); toast._t = setTimeout(function () { t.classList.remove("show"); }, 1800);
+  }
+  function respond() {
+    var ta = $("#response-md");
+    ta.value = buildMarkdown(); ta.hidden = false;
+    return ta;
+  }
+  function fallbackCopy(ta) {
+    ta.removeAttribute("readonly"); ta.select();
+    var ok = false; try { ok = document.execCommand("copy"); } catch (e) {}
+    ta.setAttribute("readonly", ""); window.getSelection && window.getSelection().removeAllRanges();
+    toast(ok ? "コピーしました" : "コピーできませんでした。テキストを手動で選択してください");
+  }
+  function copy() {
+    var ta = respond();
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(ta.value).then(function () { toast("コピーしました"); }, function () { fallbackCopy(ta); });
+    } else { fallbackCopy(ta); }
+  }
+
+  document.addEventListener("change", function (e) {
+    if (e.target.closest && e.target.closest(".doc-ask")) render();
+  });
+  $("#btn-respond").addEventListener("click", function () { respond().scrollIntoView({ behavior: "smooth", block: "center" }); });
+  $("#btn-copy").addEventListener("click", copy);
+  $("#btn-reset").addEventListener("click", function () {
+    asks.forEach(function (ask) {
+      options(ask).forEach(function (i) { i.checked = i.defaultChecked; });
+      holdBox(ask).checked = false;
+    });
+    render(); toast("推奨デフォルトに戻しました");
+  });
+  render();
+})();
+</script>
+</body>
+</html>
