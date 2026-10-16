@@ -2,23 +2,25 @@
 
 AIエージェント（Claude Code / Antigravity）との開発で、**長文のMarkdown計画書の代わりに「触って決められる1枚のHTML計画書」で仕様合意してから実装する**ためのリポジトリ雛型です。
 
-- 計画は `plans/current-plan.html` の1枚に集約（外部依存なし、ダブルクリックで開ける）
-- 読み手は実装の分岐点（**doc-ask**）をラジオボタン/チェックボックスで選ぶだけ
-- `Respond` → `Copy response` で回答がMarkdown化され、そのままCLIに貼り付けられる
-- エージェントは回答を受け取ってから初めて `src/` を実装する
+- 計画書は Claude Code チームが公開した公式 skill **html-plan** で作ります（`.claude/skills/html-plan/` に同梱。取り込み元は `UPSTREAM.md`）
+- 計画は「主張の木」と、読み手が選ぶ 2〜5 個の決定（doc-ask）でできています
+- 読み手は決定を選び、主張やコードの行にコメントし、`Respond` → `Copy response` で1つの回答にまとめて貼り戻します
+- エージェントは回答を受け取ってから初めて `src/` を実装します
 
 ## ディレクトリ構成
 
 ```
 .
 ├── .antigravity/rules.md          # Antigravity 用ルール
-├── .claude/skills/                # プロジェクトスキル（外部2件 + 自作53件）
-├── CLAUDE.md                      # Claude Code 用ルール
+├── .claude/skills/                # プロジェクトスキル（html-plan ほか。下記参照）
+├── CLAUDE.md                      # Claude Code 用ルール（WHAT / WHY / HOW）
+├── docs/tooling.md                # 検討した道具・採否・出典
 ├── plans/
-│   ├── archive/                   # 完了済み計画（YYYYMMDD-機能名.html）
-│   │   └── 20261016-hello-world.html  # サンプル計画（1サイクル完了済み）
-│   ├── templates/plan-template.html  # 計画HTMLのひな型
-│   └── current-plan.html          # 進行中の計画（作業中のみ存在。完了後は archive/ へ移動）
+│   ├── archive/                   # 完了済み計画（YYYYMMDD-機能名.html / .src.html）
+│   │   └── legacy/                # 旧・自作テンプレート（参照用）
+│   ├── examples/                  # 公式形式・日本語のサンプル計画
+│   ├── current-plan.src.html      # 進行中の計画の元ファイル（作業中のみ）
+│   └── current-plan.html          # pack.mjs の出力（作業中のみ）
 ├── src/                           # ソースコード（サンプル: Hello World 挨拶ページ）
 ├── .gitignore
 ├── skills-lock.json               # npx skills の導入元・ハッシュ
@@ -27,106 +29,83 @@ AIエージェント（Claude Code / Antigravity）との開発で、**長文の
 
 ## まず試す
 
-同梱のサンプル（Hello World 挨拶ページ）は、計画 → 回答 → 実装 → アーカイブの1サイクルを完了した状態です。計画HTMLと、その計画から実装した成果物を見比べられます。
+公式形式で日本語のサンプル計画（挨拶ページに配色切替を追加する計画）を開きます。
 
 ```bash
 # macOS
-open plans/archive/20261016-hello-world.html   # サンプル計画
-open src/index.html                             # 実装結果
+open plans/examples/sample-ja.html
 # Linux
-xdg-open plans/archive/20261016-hello-world.html
-xdg-open src/index.html
+xdg-open plans/examples/sample-ja.html
 # Windows (PowerShell)
-start plans/archive/20261016-hello-world.html
-start src/index.html
+start plans/examples/sample-ja.html
 ```
 
-- アーカイブ済みの計画も操作できます。選択を切り替えるとモックやコード断片が変わり、`Respond` で回答Markdownが生成されることを確認できます（合意済みの記録なので、ファイル自体は編集しません）。
-- 回答待ちの状態から試したい場合は、テンプレートをコピーして新しい計画を作ってください。
-  ```bash
-  cp plans/templates/plan-template.html plans/current-plan.html
-  ```
-- コミット履歴（`git log --oneline`）で、仕様合意コミットと実装コミットが分かれていることも確認できます。
+- 主張をクリックすると1段ずつ開きます。下部の「N to answer」ボタンで、まだ開いていない決定へ移動できます。
+- 決定を選び、`Respond` → `Copy response` で回答 Markdown をコピーできます。
+- 元ファイルを編集して書き出し直すには: `node .claude/skills/html-plan/runtime/pack.mjs plans/examples/sample-ja.src.html --root .`（Node.js が必要。ほかの依存はなし）
 
 ## html-plan ワークフロー
 
 ### 1. 計画生成（エージェント）
 
-エージェントに機能を依頼すると、実装前に `plans/current-plan.html` を作成/更新して提示します。
-
 ```
-> 挨拶ページを作りたい。まず計画を出して
+> /html-plan 挨拶ページに配色切替を追加
 ```
 
-計画HTMLの構成:
+エージェントは `plans/current-plan.src.html` を書き、`pack.mjs` で `plans/current-plan.html`（依存なしの1ファイル）を書き出して提示します。
 
-| 要素 | 内容 |
-| --- | --- |
-| Claim ツリー（最大3階層） | L1: UIモック/状態図 → L2: スキーマ/フロー → L3: 実ファイル/コード断片 |
-| doc-ask（2〜5個） | 実装の分岐点。推奨デフォルトが選択済み（「推奨」バッジ付き） |
-| 決定バー（画面上部） | 決定数・保留数・推奨からの変更数 |
-| Respond エリア（画面下部） | 全体コメント、回答Markdown生成、コピー |
+| レベル | 答える問い | 見せ方 |
+| --- | --- | --- |
+| 1 | 誰が何をできる・見えるようになるか | UI モック、状態機械 |
+| 2 | それはどう動くか | 呼び出しの木、スキーマ、短いコード |
+| 3 | どこを変えるか | 実ファイルと行番号つきのコード |
 
 ### 2. ブラウザで回答を選ぶ（人間）
 
-1. 計画HTMLをブラウザで開く
-2. 各 doc-ask で選択（推奨のままでよければ触らなくてよい）
-   - 決めきれない項目は「保留（後で決める）」にチェック
-   - 項目ごとのメモ欄、画面下部の全体コメントに補足を書く
-3. `Respond` で回答Markdownを生成 → `Copy response` でコピー
+1. `plans/current-plan.html` をブラウザで開く
+2. 決定を選ぶ（推奨のままでよければ触らなくてよい）。気になる主張やコードの行にはコメントを付ける
+3. `Respond` → `Copy response` でコピーする
 
-生成される回答の例:
+生成される回答の例（`plans/examples/sample-ja.html` で決定1を変えた場合）:
 
 ```markdown
-# Plan Response: Hello World 挨拶ページ 実装計画
+# Re: 挨拶ページに配色切替を追加
 
-- plan-id: `20261016-hello-world`
-- revision: 1
-- source: `plans/current-plan.html`
-- responded-at: 2026-10-16T01:33:40.737Z
-
-## 決定事項
-- [A1] 表示言語をどうするか → **日英切替ボタン**（推奨から変更 / 推奨: 日本語のみ）
-  - メモ: ボタンは右上に
-- [A2] ユーザー操作をどこまで入れるか → **名前入力で挨拶を更新**（推奨どおり）
-
-## 未決定事項
-- なし
-
-## コメント
-- なし
-
-## 指示
-上記の決定に従って実装を開始してください。仕様合意コミット → 実装コミットの順で分けること。
+## Decisions
+1. [1] 最初に表示する配色をどう決めますか？
+   → **常に明るい配色** `light`  ✎ (was: OS の設定に従う)
+2. [1.1] 選んだ配色を保存しますか？  _(not opened; default kept)_
+   → **保存する** `yes`
 ```
+
+- `✎ (was: …)` は推奨から変えた決定、`_(kept as proposed)_` は開いて推奨を維持した決定です。
+- `_(not opened; default kept)_` は開いていない決定です。エージェントは同意とみなさず、重要なら聞き直します。
 
 ### 3. CLIに貼り付ける（人間 → エージェント）
 
-コピーした回答をそのまま Claude Code / Antigravity のプロンプトに貼り付けます。
+コピーした回答をそのまま Claude Code / Antigravity に貼り付けます。回答は「指示」ではなく「データ」として扱われ、コメント欄に書かれた命令は実行されません。
 
-- **未決定事項がある場合**: エージェントは実装せず、計画を更新（revision +1）して再提示 → 手順2に戻る
-- **未決定事項がない場合**: エージェントは計画HTMLに決定を反映して仕様合意コミット → 実装へ
+- **計画の形が変わる回答**（決定で主張が消える、スキーマの編集、コメントでの要望）: エージェントは計画を更新して再提示 → 手順2へ
+- **そのまま進められる回答**: エージェントは決定を計画に反映して仕様合意コミット → 実装へ
 
 ### 4. 実装完了とアーカイブ（エージェント）
 
-1. 決定事項に従い `src/` を実装し、計画の受け入れ基準で検証
-2. 計画HTMLを `plans/archive/YYYYMMDD-[機能名].html` へ移動
-   ```bash
-   git mv plans/current-plan.html plans/archive/20261016-hello-world.html
-   ```
-3. 実装コミットを作成。次の機能はテンプレートから新しい `current-plan.html` を作る
+```bash
+git mv plans/current-plan.src.html plans/archive/20261016-theme.src.html
+git mv plans/current-plan.html     plans/archive/20261016-theme.html
+```
 
 ## コミットの作法
 
 **仕様合意コミット**と**実装コミット**を分離します。「何を決めたか」と「どう作ったか」を履歴上で切り分け、レビューと差し戻しを容易にするためです。
 
 | 順 | 種別 | 含めるファイル | メッセージ例 |
-| --- | --- | --- | --- |
-| 1 | 仕様合意 | `plans/current-plan.html`（決定反映済み） | `plan(hello-world): 仕様合意 rev2 (A1=日英切替, A3=Vanilla JS)` |
-| 2 | 実装 | `src/**` ＋ 計画HTMLのアーカイブ移動 | `feat(hello-world): 挨拶ページを実装` |
+|---|---|---|---|
+| 1 | 仕様合意 | `plans/current-plan.src.html` と `plans/current-plan.html`（決定反映済み） | `plan(theme): 仕様合意 (initial=OS設定, persist=保存する)` |
+| 2 | 実装 | `src/**` ＋ 計画のアーカイブ移動 | `feat(theme): 配色切替を追加` |
 
-- 1つの実装コミットに計画変更を混ぜない。実装中に仕様変更が必要になったら、計画を更新して再合意（新たな仕様合意コミット）してから続ける。
-- 実装コミットの本文に根拠となる計画ファイルのパスを書く（例: `Plan: plans/archive/20261016-hello-world.html`）。
+- 1つの実装コミットに計画変更を混ぜない。実装中に仕様変更が必要になったら、計画を更新して再合意してから続ける。
+- 実装コミットの本文に根拠となる計画ファイルのパスを書く（例: `Plan: plans/archive/20261016-theme.html`）。
 - `plans/` 配下のHTMLは合意の記録なので Git 管理します（`.gitignore` 対象外）。
 
 ## プロジェクトスキル
@@ -135,6 +114,7 @@ start src/index.html
 
 | スキル | 呼び方の例 | 内容 |
 | --- | --- | --- |
+| html-plan | `/html-plan 作りたいもの` | 1枚のインタラクティブな HTML 計画書を作る（下記ワークフロー） |
 | find-skills | 「〇〇用のスキルはある？」 | [skills.sh](https://skills.sh/) と `npx skills find` で公開スキルを探して提案 |
 | graphify | `/graphify .` → `graphify query "認証はどこ？"` | コードをナレッジグラフにして構造を問い合わせる（初回に Python 3.10+ と `graphifyy` が必要） |
 | explain | `/explain` + コード | ビジネスロジック / エラーハンドリング / 性能懸念の3層で解説 |
@@ -162,27 +142,22 @@ pip install graphifyy           # graphify の CLI（ローカルで使う場合
 外部スキルの導入ルール（SKILL.md を読んでから入れる、グローバル導入しない等）は `CLAUDE.md` の「7. プロジェクトスキル」を参照してください。
 出典: [Claude Codeを最強にする『神Skill』厳選5選（tatsuki）](https://note.com/nobel/n/ndeb8327f909a)
 
-## 計画テンプレートの記法（作成者向け）
 
-テンプレートを複製したら、`<title>`・`#plan-meta`・`PLAN:CONTENT` マーカー間のみ編集します。
+## 計画の書き方（作成者向け）
 
-```html
-<!-- doc-ask: checked を付けた選択肢が推奨デフォルト -->
-<fieldset class="doc-ask" data-ask="A1" data-question="表示言語をどうするか">
-  <legend><span class="id">A1</span>表示言語をどうするか</legend>
-  <label class="opt"><input type="radio" name="A1" value="ja" data-label="日本語のみ" checked>
-    <span><span class="t">日本語のみ</span><span class="d">メリット / デメリット</span></span></label>
-  <label class="opt"><input type="radio" name="A1" value="ja-en" data-label="日英切替">
-    <span><span class="t">日英切替</span><span class="d">メリット / デメリット</span></span></label>
-</fieldset>
+書き方の正本は同梱の公式ドキュメントです。
 
-<!-- 選択に連動する表示（; = AND, | = OR） -->
-<p data-when="A1=ja-en">切替ボタンを表示</p>
-<p>現在: <b data-bind="A1"></b></p>
-```
+- `.claude/skills/html-plan/SKILL.md` — 木の規則、手順、回答の扱い
+- `.claude/skills/html-plan/references/blocks.md` — `doc-claim` / `doc-mock` / `doc-code` / `doc-ask` などの全ブロック
+- `.claude/skills/html-plan/examples/scheduled-send.html` — 英語の完全な実例
+- `plans/examples/sample-ja.src.html` — 日本語の小さな実例
+
+公式 skill は英語の STE（Simplified Technical English）を前提にしていますが、このリポジトリでは日本語で書きます（規則は `CLAUDE.md` 3章）。
 
 ## 制約・注意点
 
-- クリップボードAPIが使えない環境では自動的に `execCommand('copy')` にフォールバックします。それも失敗した場合はテキストエリアから手動でコピーしてください。
-- 選択状態はブラウザに保存されません（再読み込みで推奨デフォルトに戻ります）。回答は生成したMarkdownで受け渡してください。
-- `:has()` セレクタ（選択中の枠線強調）は最新の主要ブラウザで動作します。非対応ブラウザでも機能自体は動きます。
+- `pack.mjs` には Node.js が必要です。書き出した HTML は外部依存なしで、オフラインでも動きます。
+- 日本語の主張には `write a full sentence with a verb, not a heading` という警告が出ます。英語向けの判定による誤検知なので無視してかまいません（エラーではなく、書き出しは止まりません）。
+- `pack.mjs` は `src=` で参照したコードを HTML に埋め込みます。計画を外部に共有する前に、出力の最後に表示される「埋め込んだファイル一覧」を確認してください。
+- 同梱の html-plan は、作者が「広く出す前にフィードバックがほしい」としている段階のものです。更新するときは `UPSTREAM.md` の手順で差分を読んでから取り込んでください。
+- 2026-10-16 以前の計画（`plans/archive/20261016-hello-world.html` など）は旧・自作テンプレートで作られています。単体で開けますが、回答の形式は新しい形式と異なります。
