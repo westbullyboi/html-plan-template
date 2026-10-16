@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<title>配色切替の計画</title>
+<link rel="stylesheet" href="htmlplan.css">
+<script src="htmlplan.js" defer></script>
+<body>
+<header>
+  <h1>挨拶ページに配色切替を追加</h1>
+  <doc-changes new="1" changed="3"></doc-changes>
+  <details class="thread"><summary>Why · 1 件の依頼</summary>
+    <doc-quote via="prompt" from="ユーザー">夜に見るとまぶしいので、暗い配色に切り替えたい</doc-quote>
+  </details>
+</header>
+<main>
+<doc-plan>
+  <doc-claim>
+    <p>ユーザーは右上のボタンで配色を切り替えられる。</p>
+    <doc-mock frame="none" w="360"><template>
+<div style="font:14px system-ui;padding:16px;border:1px solid #ddd;border-radius:10px;background:#fff;color:#111">
+  <div style="text-align:right"><span data-ref="toggle" style="border:1px solid #ccc;border-radius:6px;padding:2px 8px">🌙 暗い配色</span></div>
+  <h3 style="margin:8px 0">こんにちは、ゲストさん！</h3>
+  <div style="border:1px solid #ccc;border-radius:6px;padding:6px;color:#888">名前を入力</div>
+</div></template>
+      <doc-pin ref="toggle" title="新しいボタン">押すと配色が反転する。</doc-pin>
+    </doc-mock>
+    <doc-ask id="initial">
+      <p>最初に表示する配色をどう決めますか？</p>
+      <label><input type="radio" name="initial" value="os" checked> OS の設定に従う <small>多くの人に合う</small></label>
+      <label><input type="radio" name="initial" value="light"> 常に明るい配色 <small>実装が最小</small></label>
+    </doc-ask>
+    <doc-claim>
+      <p>選んだ配色はブラウザに保存し、次回も使う。</p>
+      <doc-code title="theme.js · sketch" lang="js">
+<script type="text/plain">
+const KEY = "theme";
+export function loadTheme() {
+  try { return localStorage.getItem(KEY); } catch { return null; }
+}
+export function saveTheme(value) {
+  try { localStorage.setItem(KEY, value); } catch {}
+}
+</script>
+      </doc-code>
+      <doc-ask id="persist">
+        <p>選んだ配色を保存しますか？</p>
+        <label><input type="radio" name="persist" value="yes" checked> 保存する <small>次回も同じ配色になる</small></label>
+        <label><input type="radio" name="persist" value="no"> 保存しない <small>この主張はなくなる</small></label>
+      </doc-ask>
+      <doc-claim at="src/app.js:1">
+        <p><b>app.js:1</b> · 起動時に配色を読み込む</p>
+        <doc-code src="src/app.js" lines="1-9"></doc-code>
+      </doc-claim>
+    </doc-claim>
+  </doc-claim>
+  <doc-claim>
+    <p>挨拶の表示と名前の入力は変わらない。</p>
+    <doc-code src="src/app.js" lines="4-6"></doc-code>
+  </doc-claim>
+  <doc-claim aux="scope">
+    <p>変えないもの：挨拶の文言、入力欄、ページの構成。</p>
+    <ul><li>多言語対応はしない。</li><li>配色の種類は2つだけにする。</li></ul>
+  </doc-claim>
+</doc-plan>
+</main>
+</body>
+</html>
