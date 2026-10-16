@@ -46,6 +46,9 @@ desktop.ini
 *.swp
 *.swo
 
+# graphify の生成物（/graphify . の出力。必要なときに再生成する）
+graphify-out/
+
 # Local agent state (keep shared rules tracked)
 .claude/settings.local.json
 

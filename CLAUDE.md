@@ -83,3 +83,34 @@ plans/archive/                   完了済み計画（YYYYMMDD-機能名.html）
 src/                             ソースコード
 .antigravity/rules.md            Antigravity 用の同等ルール（本ファイルと内容を同期すること）
 ```
+
+## 7. プロジェクトスキル（`.claude/skills/`）
+
+| スキル | 用途 | 取得元 |
+| --- | --- | --- |
+| `find-skills` | 公開スキルの検索と導入の提案 | `vercel-labs/skills`（`skills-lock.json` で管理） |
+| `graphify` | コードベースをナレッジグラフ化し、少ないトークンで構造を問い合わせる | PyPI `graphifyy` 0.9.91 の `graphify install --project` 出力 |
+| `explain` / `summarize` / `quiz` | コード解説 / 文書要約 / 理解度クイズ（自作） | 本リポジトリ |
+| 汎用開発スキル50件（`clean-code` 〜 `cursor-rules-sync`） | リファクタ・テスト・ドキュメント・デバッグ・効率化（一覧は README） | 本リポジトリ |
+
+### 自作スキルの共通ルール
+
+- コードを書き換えるスキルは、各変更に変更理由を付け、差分を前後3行以上のコンテキスト付きで示す。無関係な行は変更しない。
+- 機能開発や大きなリファクタリングに当たる場合は、スキルを使う前に本ファイル1〜4章の html-plan の手順（計画 → 回答 → 実装）を優先する。
+- スキル数が多いため、一覧の文字数枠を超えると使用頻度の低いスキルの説明文が省かれる。`/doctor` や `/skill-doctor` で確認し、使わないものは無効化を検討する。
+
+### 外部スキルの導入ルール
+
+- 導入前に SKILL.md を全文読み、鍵の送信・広範囲の削除・外部送信などの指示がないか確認する。
+- 導入はプロジェクト単位・コピー方式に限る: `npx skills add <owner/repo> --skill <name> -a claude-code --copy -y`。
+  `find-skills` が提案する `-g`（グローバル導入）は使わない。導入前にユーザーへ候補と理由を提示して了承を得る。
+- 更新は `npx skills update`、導入元とハッシュは `skills-lock.json` で追跡する（コミット対象）。
+- 外部スキルのファイルは直接編集しない。挙動を変えたい場合は本ファイルにルールを書く。
+
+### graphify の使い方
+
+- 構造を把握したいときだけ `/graphify .` を実行する。出力 `graphify-out/` は `.gitignore` 済み（コミットしない）。
+- `graphify-out/graph.json` があるときは、コード構造の質問に対して grep や全文読み込みの前に `graphify query "<質問>"` を使う。
+  関係は `graphify path "<A>" "<B>"`、概念は `graphify explain "<名前>"` で調べる。
+- 小さなリポジトリでは構築コストの方が大きい。素の grep / Read で足りる場合は使わない。
+- `graphify claude install` / `graphify hook install` による PreToolUse フックや git フックは導入しない（絶対パスで書き込まれ、他の環境で動かないため）。
