@@ -15,25 +15,36 @@ AIエージェント（Claude Code / Antigravity）との開発で、**長文の
 ├── CLAUDE.md                      # Claude Code 用ルール
 ├── plans/
 │   ├── archive/                   # 完了済み計画（YYYYMMDD-機能名.html）
+│   │   └── 20261016-hello-world.html  # サンプル計画（1サイクル完了済み）
 │   ├── templates/plan-template.html  # 計画HTMLのひな型
-│   └── current-plan.html          # 進行中の計画（初期はサンプル）
-├── src/                           # ソースコード
+│   └── current-plan.html          # 進行中の計画（作業中のみ存在。完了後は archive/ へ移動）
+├── src/                           # ソースコード（サンプル: Hello World 挨拶ページ）
 ├── .gitignore
 └── README.md
 ```
 
 ## まず試す
 
+同梱のサンプル（Hello World 挨拶ページ）は、計画 → 回答 → 実装 → アーカイブの1サイクルを完了した状態です。計画HTMLと、その計画から実装した成果物を見比べられます。
+
 ```bash
 # macOS
-open plans/current-plan.html
+open plans/archive/20261016-hello-world.html   # サンプル計画
+open src/index.html                             # 実装結果
 # Linux
-xdg-open plans/current-plan.html
+xdg-open plans/archive/20261016-hello-world.html
+xdg-open src/index.html
 # Windows (PowerShell)
-start plans/current-plan.html
+start plans/archive/20261016-hello-world.html
+start src/index.html
 ```
 
-同梱のサンプル（Hello World 挨拶ページ）で、選択を切り替えるとモックやコード断片が変わること、`Respond` で回答Markdownが生成されることを確認できます。
+- アーカイブ済みの計画も操作できます。選択を切り替えるとモックやコード断片が変わり、`Respond` で回答Markdownが生成されることを確認できます（合意済みの記録なので、ファイル自体は編集しません）。
+- 回答待ちの状態から試したい場合は、テンプレートをコピーして新しい計画を作ってください。
+  ```bash
+  cp plans/templates/plan-template.html plans/current-plan.html
+  ```
+- コミット履歴（`git log --oneline`）で、仕様合意コミットと実装コミットが分かれていることも確認できます。
 
 ## html-plan ワークフロー
 
