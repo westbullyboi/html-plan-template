@@ -28,3 +28,11 @@
 - リポジトリの `.claude/settings.json` で指定したプラグインは、クラウドセッションでは読み込まれない。`.claude/skills/` は読み込まれる — [Cloud environments: What carries over](https://code.claude.com/docs/en/cloud-environments#what-carries-over-from-your-setup)
 - `enabledPlugins` / `extraKnownMarketplaces` の書式 — [Settings reference](https://code.claude.com/docs/en/settings-reference#enabledplugins)
 - スキル一覧の文字数枠（モデルのコンテキストの1%）と description の上限（1,536文字） — [Skills](https://code.claude.com/docs/en/skills)
+
+## 採用: Audio Plugin Coder（APC）
+
+| 道具 | 導入方法 | 採用の理由 | 出典 |
+| --- | --- | --- | --- |
+| Audio Plugin Coder v1.8.0 | `git submodule add` → `frameworks/audio-plugin-coder`（commit `a1852d2`） | audio plugin（JUCE 9）の dream〜ship を AI に案内する。JUCE の規約を毎回教えずに済み、Claude Code / Antigravity / Gemini から使える。MIT | [Noizefield/audio-plugin-coder](https://github.com/Noizefield/audio-plugin-coder) |
+
+導入前に README / AGENTS.md / package.json / .gitmodules を読んだ。submodule は JUCE・Visage・pluginval・clap-juce-extensions（いずれも公式リポジトリ）。AGENTS.md の「AI の Co-Authored-By 禁止」は本リポジトリに適用しない。手順は `docs/audio-plugin.md`。

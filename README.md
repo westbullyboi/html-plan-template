@@ -16,6 +16,8 @@ AIエージェント（Claude Code / Antigravity）との開発で、**長文の
 ├── .claude/skills/                # プロジェクトスキル（html-plan ほか。下記参照）
 ├── CLAUDE.md                      # Claude Code 用ルール（WHAT / WHY / HOW）
 ├── docs/tooling.md                # 検討した道具・採否・出典
+├── docs/audio-plugin.md           # Audio Plugin 開発（APC）の手順
+├── frameworks/audio-plugin-coder/ # APC（git submodule）
 ├── plans/
 │   ├── archive/                   # 完了済み計画（YYYYMMDD-機能名.html / .src.html）
 │   │   └── legacy/                # 旧・自作テンプレート（参照用）

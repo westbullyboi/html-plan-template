@@ -56,3 +56,4 @@ graphify-out/
 
 # 複数 AI 間のハンドオフ（作業状態。雛形は docs/handoff-template.md）
 .handoff/
+

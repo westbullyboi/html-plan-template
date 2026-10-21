@@ -1,0 +1,3 @@
+[submodule "frameworks/audio-plugin-coder"]
+	path = frameworks/audio-plugin-coder
+	url = https://github.com/Noizefield/audio-plugin-coder
