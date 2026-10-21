@@ -53,3 +53,6 @@ graphify-out/
 .claude/settings.local.json
 
 # NOTE: plans/ 配下の HTML は計画履歴として Git 管理するため除外しない
+
+# 複数 AI 間のハンドオフ（作業状態。雛形は docs/handoff-template.md）
+.handoff/

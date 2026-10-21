@@ -12,6 +12,7 @@ AIエージェント（Claude Code / Antigravity）との開発で、**長文の
 ```
 .
 ├── .antigravity/rules.md          # Antigravity 用ルール
+├── GEMINI.md / AGENTS.md           # Gemini CLI / Freebuff 用の入口（CLAUDE.md 参照）
 ├── .claude/skills/                # プロジェクトスキル（html-plan ほか。下記参照）
 ├── CLAUDE.md                      # Claude Code 用ルール（WHAT / WHY / HOW）
 ├── docs/tooling.md                # 検討した道具・採否・出典
