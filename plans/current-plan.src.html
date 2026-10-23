@@ -69,21 +69,23 @@ auto reader = std::unique_ptr<juce::AudioFormatReader>(fm.createReaderFor(file))
     </doc-claim>
 
     <doc-claim>
-      <p>取得機能だけ、ユーザーの PC にある yt-dlp と ffmpeg を呼ぶ。</p>
+      <p>yt-dlp と ffmpeg はプラグイン本体に同梱し、ユーザーは何も導入しない。</p>
       <doc-code title="FetchJob.cpp · sketch" lang="cpp">
 <script type="text/plain">
-// 設定画面で指定した実行ファイルのパスを使う
+// .vst3 バンドル内の Resources に置いた実行ファイルを使う
+auto ytdlp = bundleResources().getChildFile("yt-dlp");
 juce::ChildProcess p;
-p.start({ ytdlpPath, "-x", "--audio-format", "wav", "-o", cachePath, url });
+p.start({ ytdlp.getFullPathName(), "-x", "--audio-format", "wav", "-o", cachePath, url });
 </script>
       </doc-code>
       <doc-ask id="tools">
         <p>yt-dlp と ffmpeg をどう用意しますか？</p>
-        <label><input type="radio" name="tools" value="user" checked> ユーザーが自分で導入し、パスを設定する <small>配布物に含めない</small></label>
-        <label><input type="radio" name="tools" value="bundle"> インストーラに同梱する <small>手間は減るが配布責任が増える</small></label>
+        <label><input type="radio" name="tools" value="bundle" checked> プラグイン本体（.vst3）に同梱する <small>単体で動く。配布責任が増える</small></label>
+        <label><input type="radio" name="tools" value="user"> ユーザーが自分で導入し、パスを設定する <small>単体動作の条件に反する</small></label>
         <label><input type="radio" name="tools" value="local"> 取得は作らず、ローカル音声ファイルだけ読む <small>この主張はなくなる</small></label>
       </doc-ask>
-      <doc-note tone="risk"><strong>Risk</strong> YouTube の利用規約と著作権の確認が必須。配布前に方針を決める（本計画は法的判断をしない）。</doc-note>
+      <doc-note tone="risk"><strong>Risk</strong> YouTube の利用規約と著作権の確認が必須。同梱するとライセンス表記と署名・公証の作業も増える（本計画は法的判断をしない）。</doc-note>
+      <doc-note tone="warn">YouTube 側の変更で、同梱した yt-dlp が古くなると取得に失敗する場合がある。基本機能には影響しない。</doc-note>
     </doc-claim>
   </doc-claim>
 
@@ -210,10 +212,10 @@ using SliceMap = std::vector<Slice>;
   <doc-claim aux="scope">
     <p>変えないもの：既存の Hello World（src/）と APC の submodule。</p>
     <ul>
-      <li>基本機能（読込・スライス・再生・保存）は外部ツールなしで動く。取得だけが外部ツールに頼る。</li>
+      <li>プラグインは単体で動く。外部ツールの導入は要らない。取得に使う実行ファイルは本体に同梱する。</li>
       <li>実装は APC のフェーズ（dream〜ship）で1回に1つずつ進める。</li>
       <li>プラグイン名は DigChop とする。形式は VST3 / AU / Standalone とする。</li>
-      <li>CLAP は対象外。JUCE のライセンス方針は配布前に決める。</li>
+      <li>CLAP は対象外。JUCE と同梱ツールのライセンス方針は配布前に決める。</li>
       <li>新リポジトリ DigChop は未作成。GitHub 連携の権限が必要。</li>
       <li>APC は macOS / Windows が対象。Linux でのビルドは未確認。</li>
     </ul>
