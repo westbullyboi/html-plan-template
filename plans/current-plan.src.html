@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<title>DigChop 計画</title>
+<link rel="stylesheet" href="htmlplan.css">
+<script src="htmlplan.js" defer></script>
+<body>
+<header>
+  <h1>YouTube 音声をランダムに刻む DigChop プラグイン</h1>
+  <doc-changes new="14"></doc-changes>
+  <details class="thread"><summary>Why · 1 件の依頼</summary>
+    <doc-quote via="prompt" from="ユーザー">Development of a C++/JUCE VST3/AU audio plugin that fetches audio from YouTube URLs and allows real-time random chopping and performance synced to a DAW sequencer.</doc-quote>
+  </details>
+</header>
+<main>
+<doc-plan>
+
+  <!-- 1 · Phase 1 -->
+  <doc-claim>
+    <p>ユーザーは音声を読み込み、波形を見られる。外部ツールは要らない。</p>
+    <doc-mock frame="none" w="440"><template>
+<div style="font:13px system-ui;padding:12px;border:1px solid #ccc;border-radius:10px;background:#1b1d22;color:#eee">
+  <div style="display:flex;gap:6px">
+    <span data-ref="url" style="flex:1;border:1px solid #555;border-radius:6px;padding:4px 8px;color:#aaa">https://www.youtube.com/watch?v=…</span>
+    <span data-ref="load" style="border:1px solid #6c6;border-radius:6px;padding:4px 10px;color:#9e9">取得</span>
+  </div>
+  <div data-ref="wave" style="margin-top:10px;height:70px;border-radius:6px;background:linear-gradient(90deg,#2b3a55 0 30%,#3b5a8a 30% 55%,#2b3a55 55% 100%)"></div>
+  <div style="margin-top:6px;color:#8a8">取得済み · 3:42 · 44.1 kHz</div>
+</div></template>
+      <doc-pin ref="url" title="URL 入力欄">貼ると取得を始める。</doc-pin>
+      <doc-pin ref="wave" title="波形表示" anchor="br">スライスの線もここに出る。</doc-pin>
+    </doc-mock>
+    <doc-ask id="ui">
+      <p>プラグインの画面は何で作りますか？</p>
+      <label><input type="radio" name="ui" value="visage" checked> Visage（C++ ネイティブ） <small>外部ランタイム不要。APC では実験的</small></label>
+      <label><input type="radio" name="ui" value="webview"> WebView（HTML/CSS） <small>Windows は WebView2 が必要</small></label>
+    </doc-ask>
+    <div data-if="ui=visage"><doc-note tone="risk"><strong>Risk</strong> APC の README は Visage を実験的と記す。Phase 1 の試作で確認する。</doc-note></div>
+    <div data-if="ui=webview"><doc-note tone="warn">Windows は WebView2 Runtime が前提（APC README）。単体動作の条件に反する。</doc-note></div>
+
+    <doc-claim>
+      <p>音声ファイルをドロップするだけで、プラグインは単体で読み込む。</p>
+      <doc-code title="SampleLoader.cpp · sketch" lang="cpp">
+<script type="text/plain">
+juce::AudioFormatManager fm;
+fm.registerBasicFormats();   // WAV / AIFF / FLAC / OGG など
+auto reader = std::unique_ptr<juce::AudioFormatReader>(fm.createReaderFor(file));
+</script>
+      </doc-code>
+    </doc-claim>
+
+    <doc-claim>
+      <p>YouTube 取得は任意の機能で、取得は子プロセスがバックグラウンドで行う。</p>
+      <doc-calls title="取得の流れ（スケッチ）" caption="音声スレッドは完成した WAV の読み込み結果だけを受け取る。">
+<script type="text/plain">
++ **FetchJob**::run()                          @ audio-plugins/DigChop/Source/FetchJob.cpp:1  -- 作業スレッドで動く
++   spawn yt-dlp + ffmpeg                      @ audio-plugins/DigChop/Source/FetchJob.cpp:1
++   **SampleStore**::publish(buffer)           @ audio-plugins/DigChop/Source/SampleStore.cpp:1  -- 原子的に差し替える
++ **PluginProcessor**::processBlock()          @ audio-plugins/DigChop/Source/PluginProcessor.cpp:1
++   SampleStore::acquire()                     @ audio-plugins/DigChop/Source/SampleStore.cpp:1  -- ロックしない
+</script>
+      </doc-calls>
+      <doc-ask id="helper">
+        <p>取得の補助処理をどう動かしますか？</p>
+        <label><input type="radio" name="helper" value="oneshot" checked> 取得のたびに子プロセスを1回起動する <small>常駐なし。壊れにくい</small></label>
+        <label><input type="radio" name="helper" value="daemon"> Python の常駐プロセスを置く <small>進捗通知は作りやすい</small></label>
+      </doc-ask>
+      <div data-if="helper=daemon"><doc-note tone="warn">常駐プロセスの起動と終了の管理が増える。</doc-note></div>
+    </doc-claim>
+
+    <doc-claim>
+      <p>yt-dlp と ffmpeg はプラグイン本体に同梱し、ユーザーは何も導入しない。</p>
+      <doc-code title="FetchJob.cpp · sketch" lang="cpp">
+<script type="text/plain">
+// .vst3 バンドル内の Resources に置いた実行ファイルを使う
+auto ytdlp = bundleResources().getChildFile("yt-dlp");
+juce::ChildProcess p;
+p.start({ ytdlp.getFullPathName(), "-x", "--audio-format", "wav", "-o", cachePath, url });
+</script>
+      </doc-code>
+      <doc-ask id="tools">
+        <p>yt-dlp と ffmpeg をどう用意しますか？</p>
+        <label><input type="radio" name="tools" value="bundle" checked> プラグイン本体（.vst3）に同梱する <small>単体で動く。配布責任が増える</small></label>
+        <label><input type="radio" name="tools" value="user"> ユーザーが自分で導入し、パスを設定する <small>単体動作の条件に反する</small></label>
+        <label><input type="radio" name="tools" value="local"> 取得は作らず、ローカル音声ファイルだけ読む <small>この主張はなくなる</small></label>
+      </doc-ask>
+      <doc-note tone="risk"><strong>Risk</strong> YouTube の利用規約と著作権の確認が必須。同梱するとライセンス表記と署名・公証の作業も増える（本計画は法的判断をしない）。</doc-note>
+      <doc-note tone="warn">YouTube 側の変更で、同梱した yt-dlp が古くなると取得に失敗する場合がある。基本機能には影響しない。</doc-note>
+    </doc-claim>
+  </doc-claim>
+
+  <!-- 2 · Phase 2 -->
+  <doc-claim>
+    <p>ユーザーは、グリッドか音の立ち上がりでスライスを作れる。</p>
+    <doc-mock frame="none" w="440"><template>
+<div style="font:13px system-ui;padding:12px;border:1px solid #ccc;border-radius:10px;background:#1b1d22;color:#eee">
+  <div style="display:flex;gap:6px;margin-bottom:8px">
+    <span data-ref="mode" style="border:1px solid #6c6;border-radius:6px;padding:3px 10px;color:#9e9">Grid</span>
+    <span style="border:1px solid #555;border-radius:6px;padding:3px 10px;color:#aaa">Transient</span>
+    <span style="color:#aaa;padding:3px 6px">1/16 · 16 slices</span>
+  </div>
+  <div style="position:relative;height:70px;border-radius:6px;background:#2b3a55">
+    <i style="position:absolute;left:25%;top:0;bottom:0;border-left:1px solid #f90"></i>
+    <i style="position:absolute;left:50%;top:0;bottom:0;border-left:1px solid #f90"></i>
+    <i data-ref="marker" style="position:absolute;left:75%;top:0;bottom:0;border-left:1px solid #f90"></i>
+  </div>
+</div></template>
+      <doc-pin ref="mode" title="切り替え">2つの方式を1つのスライス配列にまとめる。</doc-pin>
+      <doc-pin ref="marker" title="スライス線" anchor="tr">位置は秒でなくサンプル数で持つ。</doc-pin>
+    </doc-mock>
+    <doc-claim>
+      <p>どちらの方式も、同じスライス配列を作る。</p>
+      <doc-schema id="slicemap" lang="ts" title="SliceMap · sketch" caption="再生側はこの配列だけを読む。">
+<script type="text/plain">
++ interface Slice {
++   start: number      // サンプル位置
++   end: number
++   weight: number     // ランダム選択の重み
++   muted: boolean
++   solo: boolean
++ }
++ type SliceMap = Slice[]
+</script>
+      </doc-schema>
+    </doc-claim>
+    <doc-claim>
+      <p>グリッド方式は、DAW の BPM と拍子から線の位置を計算する。</p>
+      <doc-calls title="グリッド計算（スケッチ）" caption="2つの方式は同じ SliceMap を返す。">
+<script type="text/plain">
++ **GridSlicer**::build(bpm, timeSig, division)   @ audio-plugins/DigChop/Source/GridSlicer.cpp:1
++   **SliceMap** を返す                            @ audio-plugins/DigChop/Source/SliceMap.h:1
++ **TransientSlicer**::build(buffer, sensitivity)  @ audio-plugins/DigChop/Source/TransientSlicer.cpp:1  -- 立ち上がり検出
+</script>
+      </doc-calls>
+    </doc-claim>
+  </doc-claim>
+
+  <!-- 3 · Phase 3 -->
+  <doc-claim>
+    <p>MIDI ノートを受けると、重み付きでランダムなスライスを鳴らす。</p>
+    <doc-machine name="voice" caption="破線の緑は新規。ノートごとに1つの声（voice）が動く。">
+<script type="text/plain">
+machine voice initial idle
+state idle     # 鳴っていない。
+state playing  # 選んだスライスを再生中。
+state fading   # クリックを防ぐため短くフェードする。
+
+| idle | playing | fading |
+
+idle    -noteOn->  playing : pick slice
+playing -noteOff-> fading  : release
+playing -noteOn->  fading  : retrigger
+fading  -done->    idle    : 5 ms
+</script>
+    </doc-machine>
+    <doc-claim>
+      <p>再生位置は、ホストの再生ヘッドと BPM に合わせる。</p>
+      <doc-code title="PluginProcessor.cpp · sketch" lang="cpp">
+<script type="text/plain">
+if (auto* ph = getPlayHead())
+    if (auto pos = ph->getPosition())
+        bpm = pos->getBpm().orFallback(120.0);
+</script>
+      </doc-code>
+    </doc-claim>
+    <doc-claim>
+      <p>ピッチと逆再生は、スライスごとの設定で変えられる。</p>
+      <doc-schema id="mods" lang="ts" title="Modifiers · sketch">
+<script type="text/plain">
++ interface Modifiers {
++   semitones: number   // -12 〜 +12
++   reverse: boolean
++ }
+</script>
+      </doc-schema>
+    </doc-claim>
+  </doc-claim>
+
+  <!-- 4 · Phase 4 -->
+  <doc-claim>
+    <p>ユーザーはスライスの消音・単独再生、プリセット保存、DAW 保存の復元ができる。</p>
+    <doc-mock frame="none" w="440"><template>
+<div style="font:13px system-ui;padding:12px;border:1px solid #ccc;border-radius:10px;background:#1b1d22;color:#eee">
+  <div style="display:flex;gap:4px">
+    <span data-ref="mute" style="border:1px solid #c66;border-radius:4px;padding:2px 8px;color:#e99">M</span>
+    <span style="border:1px solid #cc6;border-radius:4px;padding:2px 8px;color:#ee9">S</span>
+    <span style="flex:1;color:#aaa;padding:2px 8px">Slice 03 · weight 1.0</span>
+    <span data-ref="preset" style="border:1px solid #555;border-radius:4px;padding:2px 8px;color:#aaa">Preset ▾</span>
+  </div>
+</div></template>
+      <doc-pin ref="mute" title="消音と単独再生">スライスごとに切り替える。</doc-pin>
+      <doc-pin ref="preset" title="プリセット" anchor="br">URL とスライス設定を保存する。</doc-pin>
+    </doc-mock>
+    <doc-ask id="state">
+      <p>DAW のプロジェクトに、音声データをどう残しますか？</p>
+      <label><input type="radio" name="state" value="ref" checked> URL とキャッシュの場所だけ残し、無ければ再取得する <small>プロジェクトが軽い</small></label>
+      <label><input type="radio" name="state" value="embed"> WAV 本体を埋め込む <small>確実に復元。サイズが大きい</small></label>
+    </doc-ask>
+    <div data-if="state=embed"><doc-note tone="warn">埋め込んだ音声は再配布になる。権利の方針と合わせて決める。</doc-note></div>
+  </doc-claim>
+
+  <doc-claim aux="shared">
+    <p>共有：スライス配列（SliceMap）を、分割・再生・保存の3か所が使う。</p>
+    <doc-code title="SliceMap.h · sketch" lang="cpp">
+<script type="text/plain">
+struct Slice { int64_t start, end; float weight; bool muted, solo; };
+using SliceMap = std::vector<Slice>;
+</script>
+    </doc-code>
+  </doc-claim>
+
+  <doc-claim aux="scope">
+    <p>変えないもの：既存の Hello World（src/）と APC の submodule。</p>
+    <ul>
+      <li>プラグインは単体で動く。外部ツールの導入は要らない。取得に使う実行ファイルは本体に同梱する。</li>
+      <li>実装は APC のフェーズ（dream〜ship）で1回に1つずつ進める。</li>
+      <li>プラグイン名は DigChop とする。形式は VST3 / AU / Standalone とする。</li>
+      <li>CLAP は対象外。JUCE と同梱ツールのライセンス方針は配布前に決める。</li>
+      <li>新リポジトリ DigChop は未作成。GitHub 連携の権限が必要。</li>
+      <li>APC は macOS / Windows が対象。Linux でのビルドは未確認。</li>
+    </ul>
+  </doc-claim>
+
+</doc-plan>
+</main>
+</body>
+</html>
