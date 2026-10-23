@@ -1884,7 +1884,7 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
 
   <!-- 1 · Phase 1 -->
   <doc-claim>
-    <p>ユーザーは YouTube の URL を貼り、波形を見られる。</p>
+    <p>ユーザーは音声を読み込み、波形を見られる。外部ツールは要らない。</p>
     <doc-mock frame="none" w="440"><template>
 <div style="font:13px system-ui;padding:12px;border:1px solid #ccc;border-radius:10px;background:#1b1d22;color:#eee">
   <div style="display:flex;gap:6px">
@@ -1899,13 +1899,25 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
     </doc-mock>
     <doc-ask id="ui">
       <p>プラグインの画面は何で作りますか？</p>
-      <label><input type="radio" name="ui" value="webview" checked> WebView（HTML/CSS） <small>Claude Design の成果物を使える</small></label>
-      <label><input type="radio" name="ui" value="visage"> Visage（ネイティブ描画） <small>DAW との相性は安定しやすい</small></label>
+      <label><input type="radio" name="ui" value="visage" checked> Visage（C++ ネイティブ） <small>外部ランタイム不要。APC では実験的</small></label>
+      <label><input type="radio" name="ui" value="webview"> WebView（HTML/CSS） <small>Windows は WebView2 が必要</small></label>
     </doc-ask>
-    <div data-if="ui=webview"><doc-note tone="risk"><strong>Risk</strong> DAW ごとの WebView 動作は未検証。Phase 1 で試作して確認する。</doc-note></div>
+    <div data-if="ui=visage"><doc-note tone="risk"><strong>Risk</strong> APC の README は Visage を実験的と記す。Phase 1 の試作で確認する。</doc-note></div>
+    <div data-if="ui=webview"><doc-note tone="warn">Windows は WebView2 Runtime が前提（APC README）。単体動作の条件に反する。</doc-note></div>
 
     <doc-claim>
-      <p>取得は子プロセスがバックグラウンドで行い、音声スレッドは待たない。</p>
+      <p>音声ファイルをドロップするだけで、プラグインは単体で読み込む。</p>
+      <doc-code title="SampleLoader.cpp · sketch" lang="cpp">
+<script type="text/plain">
+juce::AudioFormatManager fm;
+fm.registerBasicFormats();   // WAV / AIFF / FLAC / OGG など
+auto reader = std::unique_ptr<juce::AudioFormatReader>(fm.createReaderFor(file));
+</script>
+      </doc-code>
+    </doc-claim>
+
+    <doc-claim>
+      <p>YouTube 取得は任意の機能で、取得は子プロセスがバックグラウンドで行う。</p>
       <doc-calls title="取得の流れ（スケッチ）" caption="音声スレッドは完成した WAV の読み込み結果だけを受け取る。">
 <script type="text/plain">
 + **FetchJob**::run()                          @ audio-plugins/DigChop/Source/FetchJob.cpp:1  -- 作業スレッドで動く
@@ -1924,7 +1936,7 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
     </doc-claim>
 
     <doc-claim>
-      <p>取得ツールは、ユーザーの PC にある yt-dlp と ffmpeg を呼ぶ。</p>
+      <p>取得機能だけ、ユーザーの PC にある yt-dlp と ffmpeg を呼ぶ。</p>
       <doc-code title="FetchJob.cpp · sketch" lang="cpp">
 <script type="text/plain">
 // 設定画面で指定した実行ファイルのパスを使う
@@ -2065,10 +2077,12 @@ using SliceMap = std::vector<Slice>;
   <doc-claim aux="scope">
     <p>変えないもの：既存の Hello World（src/）と APC の submodule。</p>
     <ul>
+      <li>基本機能（読込・スライス・再生・保存）は外部ツールなしで動く。取得だけが外部ツールに頼る。</li>
       <li>実装は APC のフェーズ（dream〜ship）で1回に1つずつ進める。</li>
       <li>プラグイン名は DigChop とする。形式は VST3 / AU / Standalone とする。</li>
       <li>CLAP は対象外。JUCE のライセンス方針は配布前に決める。</li>
       <li>新リポジトリ DigChop は未作成。GitHub 連携の権限が必要。</li>
+      <li>APC は macOS / Windows が対象。Linux でのビルドは未確認。</li>
     </ul>
   </doc-claim>
 
